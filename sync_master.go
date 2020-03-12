@@ -49,8 +49,65 @@ func newSyncMaster(opts DbOpts) SyncMaster {
 		log.Fatal("Unknown database type. Please supply sqlite3 or postgres")
 	}
 
-	sync.db.AutoMigrate(&Label{})
+	//sync.db.AutoMigrate(&Label{})
+	sync.db.AutoMigrate(&Wallet{})
 	return sync
+}
+
+func (self *SyncMaster) makeWallet(walletRequest WalletRequest, w rest.ResponseWriter) Wallet{
+	var wallet Wallet
+	search := Wallet{XpubId:walletRequest.XpubId, WalletId: walletRequest.WalletId, Xpubs: walletRequest.Xpubs, WalletType: walletRequest.WalletType}
+
+	self.db.Where(search).FirstOrInit(&wallet)
+
+	self.logger.Debug("param xpubId = %s WalletId = %s xpubs = %s walltype = %s", walletRequest.XpubId, walletRequest.WalletId, walletRequest.Xpubs, walletRequest.WalletType)
+	//self.logger.Debug("current xpubId = %s WalletId = %s xpubs = %s", wallet.XpubId, wallet.WalletId, wallet.Xpubs)
+
+	wallet.XpubId = walletRequest.XpubId
+	wallet.WalletId = walletRequest.WalletId
+	wallet.Xpubs = walletRequest.Xpubs
+	wallet.WalletType = walletRequest.WalletType
+
+	self.db.Save(&wallet)
+	self.logger.Debug("save OK..................%s", wallet.XpubId)
+
+	return wallet
+}
+
+func (self *SyncMaster) CreateWallet(w rest.ResponseWriter, r *rest.Request){
+	walletRequest := WalletRequest{}
+	err := r.DecodeJsonPayload(&walletRequest)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if walletRequest.XpubId == ""{
+		rest.Error(w, "xpubId required", 400)
+	}
+	if walletRequest.WalletId == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	if walletRequest.Xpubs == "" {
+		rest.Error(w, "xpubs required", 400)
+	}
+	if walletRequest.WalletType == "" {
+		rest.Error(w, "walletType required", 400)
+	}
+	self.logger.Debug("Got request:", walletRequest)
+	wallet := self.makeWallet(walletRequest, w)
+	w.WriteJson(wallet)
+}
+func (self *SyncMaster) GetWallets(w rest.ResponseWriter, r *rest.Request) {
+	var wallets []Wallet
+	mpk := r.PathParam("mpk")
+
+	if mpk == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	self.db.Where("xpub_id = ?", mpk).Find(&wallets)
+	self.logger.Debug("GetWallets=======%s", wallets)
+
+	w.WriteJson(WalletsResponse{Walltes: wallets})
 }
 
 func (self *SyncMaster) makeLabel(labelRequest LabelRequest, w rest.ResponseWriter) Label {

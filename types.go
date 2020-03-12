@@ -13,6 +13,36 @@ type DbOpts struct {
 	Password string
 }
 
+//SQL Object for wallet
+type Wallet struct {
+	Id           int       	 `sql:"index" json:"id"`
+	XpubId       string    	 `json:"xpubId"`
+	WalletId 	 string 	 `json:walletId`
+	Xpubs		 string  	 `json:xpubs`
+	WalletType   string      `json:walletType`
+}
+////
+//type Wallets struct {
+//	WalletId 	string 		 `json:walletId`
+//	Xpubs		[]string  	 `json:xpubs`
+//}
+//
+//type BatchXpub struct {
+//	EncryptedXpub  string `json:"encryptedXpub"`
+//	ExternalId     string `json:"externalId"`
+//}
+
+type WalletsResponse struct {
+	Walltes 	[]Wallet	`json: "wallets"`
+}
+
+type WalletRequest struct {
+	XpubId		string       `json:xpubId`
+	WalletId 	string 		 `json:walletId`
+	Xpubs		string  	 `json:xpubs`
+	WalletType  string       `json:walletType`
+}
+
 // SQL Object
 type Label struct {
 	Id             int    `sql:"index" json:"id"`
