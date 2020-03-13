@@ -55,12 +55,13 @@ func main() {
 		&rest.Route{"GET", "/labels/since/:nonce/for/:mpk", sm.GetLabels},
 		&rest.Route{"POST", "/label", sm.CreateLabel},
 		&rest.Route{"POST", "/labels", sm.CreateLabels},
+		&rest.Route{"GET", "/wallets/:mpk", sm.GetWallets},
+		&rest.Route{"POST", "/wallet", sm.CreateWallet},
 	)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	api.SetApp(router)
 
 	// Special exception to make Heroku like deployment easy
