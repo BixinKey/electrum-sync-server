@@ -1,0 +1,19 @@
+name: Main workflow
+
+on: [push]
+
+jobs:
+  main:
+    name: Main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - run: docker build .
+      - name: Dockerize
+        if: success()
+        uses: manusa/actions-publish-docker@master
+        with:
+          name: bixin/electrum-sync-server
+          username: ${{ secrets.DOCKER_HUB_USER }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
