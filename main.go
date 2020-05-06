@@ -57,8 +57,11 @@ func main() {
 		&rest.Route{"POST", "/labels", sm.CreateLabels},
 		&rest.Route{"GET", "/wallets/:mpk", sm.GetWallets},
 		&rest.Route{"POST", "/wallet", sm.CreateWallet},
+		&rest.Route{"POST", "/createtx", sm.CreateTx},
+		&rest.Route{"POST", "/signtx", sm.SignTx},
+		&rest.Route{"POST", "/rbftx", sm.RbfTx},
+		&rest.Route{"GET", "/transactions/:mpk", sm.GetTxs},
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}

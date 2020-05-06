@@ -20,17 +20,8 @@ type Wallet struct {
 	WalletId 	 string 	 `json:walletId`
 	Xpubs		 string  	 `json:xpubs`
 	WalletType   string      `json:walletType`
+	WalletName   string		 `json:walletName`
 }
-////
-//type Wallets struct {
-//	WalletId 	string 		 `json:walletId`
-//	Xpubs		[]string  	 `json:xpubs`
-//}
-//
-//type BatchXpub struct {
-//	EncryptedXpub  string `json:"encryptedXpub"`
-//	ExternalId     string `json:"externalId"`
-//}
 
 type WalletsResponse struct {
 	Walltes 	[]Wallet	`json: "wallets"`
@@ -41,8 +32,32 @@ type WalletRequest struct {
 	WalletId 	string 		 `json:walletId`
 	Xpubs		string  	 `json:xpubs`
 	WalletType  string       `json:walletType`
+	WalletName  string		 `json:walletName`
+}
+//SQL Object for tx
+type Transaction struct {
+	Id           int       	 `sql:"index" json:"id"`
+	WalletId 	 string 	 `json:walletId`
+	TxHash		 string  	 `json:txHash`
+	Tx           string      `json:tx`
 }
 
+type TxResponse struct {
+	Transactions 	[]Transaction	`json: "transactions"`
+}
+
+type TxRequest struct {
+	WalletId 	string 		 `json:walletId`
+	TxHash		string  	 `json:txHash`
+	Tx          string       `json:tx`
+}
+
+type TxRbfRequest struct {
+	WalletId 	string 		 `json:walletId`
+	TxHash		string  	 `json:txHash`
+	Tx          string       `json:tx`
+	TxHashOld   string       `json:txHashOld`
+}
 // SQL Object
 type Label struct {
 	Id             int    `sql:"index" json:"id"`
