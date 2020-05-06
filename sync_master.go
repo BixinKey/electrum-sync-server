@@ -48,28 +48,147 @@ func newSyncMaster(opts DbOpts) SyncMaster {
 	} else {
 		log.Fatal("Unknown database type. Please supply sqlite3 or postgres")
 	}
-
+	//db.SingularTable(true)
 	//sync.db.AutoMigrate(&Label{})
-	sync.db.AutoMigrate(&Wallet{})
+	//sync.db.AutoMigrate(&Wallet{}, &Transaction{}, &Label{})
+	sync.db.CreateTable(&Label{})
+	sync.logger.Info("create table%s", &Label{})
+	sync.db.CreateTable(&Wallet{})
+	sync.logger.Info("create table%s", &Wallet{})
+	sync.db.CreateTable(&Transaction{})
+	sync.logger.Info("create table%s", &Transaction{})
+	
 	return sync
 }
 
+/////////////////////////////transaction///////////////////////
+func (self *SyncMaster) makeTx(txRequest TxRequest, w rest.ResponseWriter) Transaction{
+	var transaction Transaction
+	search := Transaction{WalletId: txRequest.WalletId, TxHash: txRequest.TxHash, Tx: txRequest.Tx}
+
+	self.db.Where(search).FirstOrInit(&transaction)
+
+	transaction.TxHash = txRequest.TxHash
+	transaction.WalletId = txRequest.WalletId
+	transaction.Tx = txRequest.Tx
+
+	self.db.Save(&transaction)
+	self.logger.Debug("transactions save OK, param is (WalletId = %s TxHash = %s tx = %s)", txRequest.WalletId, txRequest.TxHash, txRequest.Tx)
+
+	return transaction
+}
+
+func (self *SyncMaster) CreateTx(w rest.ResponseWriter, r *rest.Request){
+	txRequest := TxRequest{}
+	err := r.DecodeJsonPayload(&txRequest)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if txRequest.WalletId == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	if txRequest.TxHash == "" {
+		rest.Error(w, "txHash required", 400)
+	}
+	if txRequest.Tx == "" {
+		rest.Error(w, "Tx required", 400)
+	}
+	self.logger.Debug("Got request:", txRequest)
+	tx := self.makeTx(txRequest, w)
+	w.WriteJson(tx)
+}
+
+func (self *SyncMaster) SignTx(w rest.ResponseWriter, r *rest.Request){
+	txRequest := TxRequest{}
+	err := r.DecodeJsonPayload(&txRequest)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if txRequest.WalletId == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	if txRequest.TxHash == "" {
+		rest.Error(w, "txHash required", 400)
+	}
+	if txRequest.Tx == "" {
+		rest.Error(w, "Tx required", 400)
+	}
+	//1.search tx_hash
+	//2.replace tx
+	self.db.Table("transactions").Where("wallet_id = ? AND tx_hash = ?", txRequest.WalletId, txRequest.TxHash).Update("tx", txRequest.Tx)
+	self.logger.Debug("SignTx UPDATE to new_tx(%s), walletId = %s, tx_hash = %s", txRequest.Tx, txRequest.WalletId, txRequest.TxHash)
+	var transaction Transaction
+	transaction.WalletId = txRequest.WalletId
+	transaction.TxHash = txRequest.TxHash
+	transaction.Tx = txRequest.Tx
+	w.WriteJson(transaction)
+}
+
+func (self *SyncMaster) RbfTx(w rest.ResponseWriter, r *rest.Request){
+	txRbfRequest := TxRbfRequest{}
+	err := r.DecodeJsonPayload(&txRbfRequest)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if txRbfRequest.WalletId == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	if txRbfRequest.TxHash == "" {
+		rest.Error(w, "txHash required", 400)
+	}
+	if txRbfRequest.Tx == "" {
+		rest.Error(w, "Tx required", 400)
+	}
+	if txRbfRequest.TxHashOld == "" {
+		rest.Error(w, "TxHashOld required", 400)
+	}
+	//1.delete tx_hash_old
+	self.db.Table("transactions").Where("wallet_id = ? AND tx_hash = ?", txRbfRequest.WalletId, txRbfRequest.TxHashOld).Delete(Transaction{})
+	self.logger.Debug("RbfTx DELETE old_hash(%s) and add new_hash(%s) new_tx(%s), walletId = %s", txRbfRequest.TxHashOld, txRbfRequest.TxHash, txRbfRequest.Tx, txRbfRequest.WalletId)
+	//2.add new makeTx()
+	self.logger.Debug("Got request:", txRbfRequest)
+	var txRequest TxRequest
+	txRequest.WalletId = txRbfRequest.WalletId
+	txRequest.TxHash = txRbfRequest.TxHash
+	txRequest.Tx = txRbfRequest.Tx
+	
+	tx := self.makeTx(txRequest, w)
+	w.WriteJson(tx)
+}
+
+func (self *SyncMaster) GetTxs(w rest.ResponseWriter, r *rest.Request) {
+	var transactions []Transaction
+	mpk := r.PathParam("mpk")
+	self.logger.Debug("mpk=======%s", mpk)
+	if mpk == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	 
+	self.db.Where("wallet_id = ?", mpk).Order("id desc").Limit(10).Find(&transactions)
+	self.logger.Debug("GetTxs=======%s", transactions)
+
+	w.WriteJson(TxResponse{Transactions: transactions})
+}
+///////////////////////////wallet ///////////////////////
 func (self *SyncMaster) makeWallet(walletRequest WalletRequest, w rest.ResponseWriter) Wallet{
 	var wallet Wallet
-	search := Wallet{XpubId:walletRequest.XpubId, WalletId: walletRequest.WalletId, Xpubs: walletRequest.Xpubs, WalletType: walletRequest.WalletType}
+	search := Wallet{XpubId:walletRequest.XpubId, WalletId: walletRequest.WalletId, Xpubs: walletRequest.Xpubs, WalletType: walletRequest.WalletType, WalletName: walletRequest.WalletName}
 
 	self.db.Where(search).FirstOrInit(&wallet)
-
-	self.logger.Debug("param xpubId = %s WalletId = %s xpubs = %s walltype = %s", walletRequest.XpubId, walletRequest.WalletId, walletRequest.Xpubs, walletRequest.WalletType)
-	//self.logger.Debug("current xpubId = %s WalletId = %s xpubs = %s", wallet.XpubId, wallet.WalletId, wallet.Xpubs)
 
 	wallet.XpubId = walletRequest.XpubId
 	wallet.WalletId = walletRequest.WalletId
 	wallet.Xpubs = walletRequest.Xpubs
 	wallet.WalletType = walletRequest.WalletType
+	wallet.WalletName = walletRequest.WalletName
 
 	self.db.Save(&wallet)
-	self.logger.Debug("save OK..................%s", wallet.XpubId)
+	self.logger.Debug("wallets save OK, param is (xpubId = %s WalletId = %s xpubs = %s walltype = %s walletname = %s)", walletRequest.XpubId, walletRequest.WalletId, walletRequest.Xpubs, walletRequest.WalletType, walletRequest.WalletName)
 
 	return wallet
 }
@@ -100,7 +219,7 @@ func (self *SyncMaster) CreateWallet(w rest.ResponseWriter, r *rest.Request){
 func (self *SyncMaster) GetWallets(w rest.ResponseWriter, r *rest.Request) {
 	var wallets []Wallet
 	mpk := r.PathParam("mpk")
-
+	self.logger.Debug("mpk=======%s", mpk)
 	if mpk == "" {
 		rest.Error(w, "walletId required", 400)
 	}
@@ -110,6 +229,7 @@ func (self *SyncMaster) GetWallets(w rest.ResponseWriter, r *rest.Request) {
 	w.WriteJson(WalletsResponse{Walltes: wallets})
 }
 
+////////////////label ////////////////////
 func (self *SyncMaster) makeLabel(labelRequest LabelRequest, w rest.ResponseWriter) Label {
 	var label Label
 	search := Label{WalletId: labelRequest.WalletId, ExternalId: labelRequest.ExternalId}
