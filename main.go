@@ -60,6 +60,7 @@ func main() {
 		&rest.Route{"POST", "/createtx", sm.CreateTx},
 		&rest.Route{"POST", "/signtx", sm.SignTx},
 		&rest.Route{"POST", "/rbftx", sm.RbfTx},
+		&rest.Route{"POST", "/deltx", sm.DelTx},
 		&rest.Route{"GET", "/transactions/:mpk", sm.GetTxs},
 	)
 	if err != nil {

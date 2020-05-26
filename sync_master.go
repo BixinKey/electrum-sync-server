@@ -118,13 +118,17 @@ func (self *SyncMaster) SignTx(w rest.ResponseWriter, r *rest.Request){
 	}
 	//1.search tx_hash
 	//2.replace tx
+	if self.db.First(&Transaction{}, "wallet_id = ? AND tx_hash = ?", txRequest.WalletId, txRequest.TxHash).RecordNotFound(){
+		self.logger.Debug("SignTx ADD new_tx(%s), walletId = %s, tx_hash = %s", txRequest.Tx, txRequest.WalletId, txRequest.TxHash)
+		var transaction Transaction
+		transaction.WalletId = txRequest.WalletId
+		transaction.TxHash = txRequest.TxHash
+		transaction.Tx = txRequest.Tx
+		tx := self.makeTx(txRequest, w)
+		w.WriteJson(tx)
+	}
 	self.db.Table("transactions").Where("wallet_id = ? AND tx_hash = ?", txRequest.WalletId, txRequest.TxHash).Update("tx", txRequest.Tx)
 	self.logger.Debug("SignTx UPDATE to new_tx(%s), walletId = %s, tx_hash = %s", txRequest.Tx, txRequest.WalletId, txRequest.TxHash)
-	var transaction Transaction
-	transaction.WalletId = txRequest.WalletId
-	transaction.TxHash = txRequest.TxHash
-	transaction.Tx = txRequest.Tx
-	w.WriteJson(transaction)
 }
 
 func (self *SyncMaster) RbfTx(w rest.ResponseWriter, r *rest.Request){
@@ -159,6 +163,26 @@ func (self *SyncMaster) RbfTx(w rest.ResponseWriter, r *rest.Request){
 	
 	tx := self.makeTx(txRequest, w)
 	w.WriteJson(tx)
+}
+
+func (self *SyncMaster) DelTx(w rest.ResponseWriter, r *rest.Request){
+	txDelRequest := TxDelRequest{}
+	err := r.DecodeJsonPayload(&txDelRequest)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if txDelRequest.WalletId == "" {
+		rest.Error(w, "walletId required", 400)
+	}
+	if txDelRequest.TxHash == "" {
+		rest.Error(w, "txHash required", 400)
+	}
+	
+	//1.delete tx_hash_old
+	self.db.Table("transactions").Where("wallet_id = ? AND tx_hash = ?", txDelRequest.WalletId, txDelRequest.TxHash).Delete(Transaction{})
+	self.logger.Debug("DelTx DELETE hash(%s) walletId = %s", txDelRequest.TxHash, txDelRequest.WalletId)
 }
 
 func (self *SyncMaster) GetTxs(w rest.ResponseWriter, r *rest.Request) {
