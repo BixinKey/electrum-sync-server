@@ -52,6 +52,11 @@ type TxRequest struct {
 	Tx          string       `json:tx`
 }
 
+type TxDelRequest struct {
+	WalletId 	string 		 `json:walletId`
+	TxHash		string  	 `json:txHash`
+}
+
 type TxRbfRequest struct {
 	WalletId 	string 		 `json:walletId`
 	TxHash		string  	 `json:txHash`
