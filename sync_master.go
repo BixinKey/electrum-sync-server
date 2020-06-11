@@ -242,12 +242,17 @@ func (self *SyncMaster) CreateWallet(w rest.ResponseWriter, r *rest.Request){
 }
 func (self *SyncMaster) GetWallets(w rest.ResponseWriter, r *rest.Request) {
 	var wallets []Wallet
-	mpk := r.PathParam("mpk")
-	self.logger.Debug("mpk=======%s", mpk)
-	if mpk == "" {
-		rest.Error(w, "walletId required", 400)
+	getWalletRequest := GetWalletRequest{}
+	err := r.DecodeJsonPayload(&getWalletRequest)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	self.db.Where("xpub_id = ?", mpk).Find(&wallets)
+	if getWalletRequest.XpubId == ""{
+		rest.Error(w, "xpubId required", 400)
+	}
+
+	self.db.Where("xpub_id = ?", getWalletRequest.XpubId).Find(&wallets)
 	self.logger.Debug("GetWallets=======%s", wallets)
 
 	w.WriteJson(WalletsResponse{Walltes: wallets})

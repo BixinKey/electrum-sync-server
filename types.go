@@ -26,7 +26,9 @@ type Wallet struct {
 type WalletsResponse struct {
 	Walltes 	[]Wallet	`json: "wallets"`
 }
-
+type GetWalletRequest struct{
+	XpubId       string    	 `json:"xpubId"`
+}
 type WalletRequest struct {
 	XpubId		string       `json:xpubId`
 	WalletId 	string 		 `json:walletId`
